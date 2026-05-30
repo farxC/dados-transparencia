@@ -13,6 +13,7 @@ type IngestionHistory struct {
 	SourceFile     string        `json:"source_file" db:"source_file"`
 	TriggerType    string        `json:"trigger_type" db:"trigger_type"`
 	ScopeType      string        `json:"scope_type" db:"scope_type"`
+	Kind           string        `json:"kind" db:"kind"`
 	Status         string        `json:"status" db:"status"`
 	ProcessedCodes pq.Int64Array `json:"processed_codes" db:"processed_codes" swaggertype:"array,integer"`
 }

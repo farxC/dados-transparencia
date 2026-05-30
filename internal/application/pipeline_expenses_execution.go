@@ -117,3 +117,5 @@ func (p *ExpensesExecutionPipeline) HistoryRange(startDate, endDate time.Time) (
 	end := time.Date(endDate.Year(), endDate.Month(), 1, 0, 0, 0, 0, endDate.Location())
 	return start, end
 }
+
+func (p *ExpensesExecutionPipeline) Kind() string { return "expenses_execution" }

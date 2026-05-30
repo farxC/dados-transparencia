@@ -108,3 +108,5 @@ func (p *ExpensesDailyPipeline) HistoryKey(h model.IngestionHistory) string {
 func (p *ExpensesDailyPipeline) HistoryRange(startDate, endDate time.Time) (time.Time, time.Time) {
 	return startDate, endDate
 }
+
+func (p *ExpensesDailyPipeline) Kind() string { return "expenses" }

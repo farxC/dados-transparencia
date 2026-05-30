@@ -77,7 +77,7 @@ func (o *Orchestrator[J]) InitializeState(ctx context.Context, startDate, endDat
 	start, end := o.pipeline.HistoryRange(startDate, endDate)
 	o.appLogger.Info(component, "Syncing state from DB: range=%s to %s", start.Format(time.DateOnly), end.Format(time.DateOnly))
 
-	history, err := o.historyRepo.GetHistoryInRange(ctx, start, end, codes)
+	history, err := o.historyRepo.GetHistoryInRange(ctx, start, end, codes, o.pipeline.Kind())
 	if err != nil {
 		return fmt.Errorf("failed to load history: %w", err)
 	}
@@ -159,6 +159,7 @@ func (o *Orchestrator[J]) worker(ctx context.Context, wg *sync.WaitGroup) {
 
 		// Build and persist the IN_PROGRESS audit record before any ETL work.
 		history := o.pipeline.BuildHistoryRecord(envelope.job)
+		history.Kind = o.pipeline.Kind()
 		history.Status = statusInProgress
 		if err := o.historyRepo.InsertIngestionHistory(ctx, history); err != nil {
 			o.appLogger.Error(component, "Failed to create IN_PROGRESS record: key=%s err=%v", key, err)

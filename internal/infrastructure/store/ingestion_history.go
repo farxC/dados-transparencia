@@ -38,6 +38,7 @@ func (ih *IngestionHistoryStore) InsertIngestionHistory(ctx context.Context, his
 		source_file,
 		trigger_type,
 		scope_type,
+		kind,
 		status,
 		processed_codes
 	) VALUES (
@@ -45,6 +46,7 @@ func (ih *IngestionHistoryStore) InsertIngestionHistory(ctx context.Context, his
 		:source_file,
 		:trigger_type,
 		:scope_type,
+		:kind,
 		:status,
 		:processed_codes
 	) RETURNING id, processed_at`
@@ -71,7 +73,7 @@ func (ih *IngestionHistoryStore) InsertIngestionHistory(ctx context.Context, his
 
 func (ih *IngestionHistoryStore) GetLatest(ctx context.Context, limit int) ([]model.IngestionHistory, error) {
 	query := `
-		SELECT id, processed_at, reference_date, source_file, trigger_type, scope_type, status, processed_codes
+		SELECT id, processed_at, reference_date, source_file, trigger_type, scope_type, kind, status, processed_codes
 		FROM ingestion_history
 		ORDER BY processed_at DESC
 		LIMIT $1
@@ -93,16 +95,17 @@ func (ih *IngestionHistoryStore) UpdateIngestionStatus(ctx context.Context, id i
 	return nil
 }
 
-func (ih *IngestionHistoryStore) GetHistoryInRange(ctx context.Context, startDate, endDate time.Time, codes []int64) ([]model.IngestionHistory, error) {
+func (ih *IngestionHistoryStore) GetHistoryInRange(ctx context.Context, startDate, endDate time.Time, codes []int64, kind string) ([]model.IngestionHistory, error) {
 	query := `
-		SELECT id, processed_at, reference_date, source_file, trigger_type, scope_type, status, processed_codes
+		SELECT id, processed_at, reference_date, source_file, trigger_type, scope_type, kind, status, processed_codes
 		FROM ingestion_history
 		WHERE reference_date BETWEEN $1 AND $2
 		AND processed_codes && $3
+		AND kind = $4
 		ORDER BY reference_date ASC, processed_at DESC
 	`
 	var history []model.IngestionHistory
-	err := ih.db.SelectContext(ctx, &history, query, startDate, endDate, pq.Array(codes))
+	err := ih.db.SelectContext(ctx, &history, query, startDate, endDate, pq.Array(codes), kind)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ingestion history in range: %w", err)
 	}

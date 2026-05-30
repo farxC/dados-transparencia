@@ -29,4 +29,7 @@ type Pipeline[J any] interface {
 	HistoryKey(h model.IngestionHistory) string
 
 	HistoryRange(startDate, endDate time.Time) (time.Time, time.Time)
+
+	// Kind returns the pipeline identifier used to segregate IngestionHistory records.
+	Kind() string
 }
