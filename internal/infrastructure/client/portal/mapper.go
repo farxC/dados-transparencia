@@ -2,6 +2,7 @@ package portal
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/farxc/envelopa-transparencia/internal/domain/model"
 	"github.com/farxc/envelopa-transparencia/internal/utils"
@@ -261,6 +262,67 @@ func DfRowToLiquidationImpactedCommitment(df dataframe.DataFrame, rowIdx int) (m
 		RegisteredPayablesValueBRL:    registeredPayablesValue,
 		CanceledPayablesValueBRL:      canceledPayablesValue,
 		OutstandingValueLiquidatedBRL: outstandingValueLiquidated,
+	}, nil
+}
+
+func parsePercentField(df dataframe.DataFrame, rowIdx int, column string) (float64, error) {
+	raw := strings.TrimSuffix(utils.GetStr(column, rowIdx, &df), "%")
+	value, err := utils.ParseFloat(strings.TrimSpace(raw))
+	if err != nil {
+		return 0, fmt.Errorf("row=%d column=%q: %w", rowIdx, column, err)
+	}
+	return value, nil
+}
+
+func DfRowToExpenseBudget(df dataframe.DataFrame, rowIdx int) (model.ExpenseBudget, error) {
+	initialBudget, err := parseFloatField(df, rowIdx, "ORÇAMENTO INICIAL (R$)")
+	if err != nil {
+		return model.ExpenseBudget{}, err
+	}
+	updatedBudget, err := parseFloatField(df, rowIdx, "ORÇAMENTO ATUALIZADO (R$)")
+	if err != nil {
+		return model.ExpenseBudget{}, err
+	}
+	committedBudget, err := parseFloatField(df, rowIdx, "ORÇAMENTO EMPENHADO (R$)")
+	if err != nil {
+		return model.ExpenseBudget{}, err
+	}
+	executedBudget, err := parseFloatField(df, rowIdx, "ORÇAMENTO REALIZADO (R$)")
+	if err != nil {
+		return model.ExpenseBudget{}, err
+	}
+	percentExecuted, err := parsePercentField(df, rowIdx, "% REALIZADO DO ORÇAMENTO (COM RELAÇÃO AO ORÇAMENTO ATUALIZADO)")
+	if err != nil {
+		return model.ExpenseBudget{}, err
+	}
+
+	return model.ExpenseBudget{
+		Exercise:              int(utils.ParseInt64(utils.GetStr("EXERCÍCIO", rowIdx, &df))),
+		SuperiorOrganCode:     utils.GetInt64("CÓDIGO ÓRGÃO SUPERIOR", rowIdx, &df),
+		SuperiorOrganName:     utils.GetStr("NOME ÓRGÃO SUPERIOR", rowIdx, &df),
+		SubordinateAgencyCode: utils.GetInt64("CÓDIGO ÓRGÃO SUBORDINADO", rowIdx, &df),
+		SubordinateAgencyName: utils.GetStr("NOME ÓRGÃO SUBORDINADO", rowIdx, &df),
+		BudgetaryUnitCode:     utils.GetInt64("CÓDIGO UNIDADE ORÇAMENTÁRIA", rowIdx, &df),
+		BudgetaryUnitName:     utils.GetStr("NOME UNIDADE ORÇAMENTÁRIA", rowIdx, &df),
+		FunctionCode:          utils.GetInt64("CÓDIGO FUNÇÃO", rowIdx, &df),
+		FunctionName:          utils.GetStr("NOME FUNÇÃO", rowIdx, &df),
+		SubfunctionCode:       utils.GetInt64("CÓDIGO SUBFUNÇÃO", rowIdx, &df),
+		SubfunctionName:       utils.GetStr("NOME SUBFUNÇÃO", rowIdx, &df),
+		BudgetProgramCode:     utils.GetStr("CÓDIGO PROGRAMA ORÇAMENTÁRIO", rowIdx, &df),
+		BudgetProgramName:     utils.GetStr("NOME PROGRAMA ORÇAMENTÁRIO", rowIdx, &df),
+		ActionCode:            utils.GetStr("CÓDIGO AÇÃO", rowIdx, &df),
+		ActionName:            utils.GetStr("NOME AÇÃO", rowIdx, &df),
+		EconomicCategoryCode:  utils.GetInt64("CÓDIGO CATEGORIA ECONÔMICA", rowIdx, &df),
+		EconomicCategory:      utils.GetStr("NOME CATEGORIA ECONÔMICA", rowIdx, &df),
+		ExpenseGroupCode:      utils.GetInt16("CÓDIGO GRUPO DE DESPESA", rowIdx, &df),
+		ExpenseGroupName:      utils.GetStr("NOME GRUPO DE DESPESA", rowIdx, &df),
+		ExpenseElementCode:    utils.GetInt64("CÓDIGO ELEMENTO DE DESPESA", rowIdx, &df),
+		ExpenseElementName:    utils.GetStr("NOME ELEMENTO DE DESPESA", rowIdx, &df),
+		InitialBudget:         initialBudget,
+		UpdatedBudget:         updatedBudget,
+		CommittedBudget:       committedBudget,
+		ExecutedBudget:        executedBudget,
+		PercentExecutedBudget: percentExecuted,
 	}, nil
 }
 

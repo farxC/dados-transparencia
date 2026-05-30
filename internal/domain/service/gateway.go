@@ -10,4 +10,6 @@ type TransparencyPortalClient interface {
 	ExtractExpenses(cfg ExpensesExtractionConfig) (*ExpensesPayload, error)
 	FetchExpensesExecution(month, year string) DownloadResult
 	ExtractExpensesExecution(cfg ExpensesExecutionExtractionConfig) (*ExpensesExecutionPayload, error)
+	FetchBudget(year string) DownloadResult
+	ExtractBudget(cfg BudgetExtractionConfig) (*BudgetPayload, error)
 }

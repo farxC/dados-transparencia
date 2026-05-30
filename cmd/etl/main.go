@@ -94,7 +94,7 @@ func (m *MemoryMonitor) Stop() ProfilerStats {
 
 func createTmpDirs(appLogger *logger.Logger) error {
 	const component = "TempDirCreator"
-	dirs := []string{"tmp", "tmp/zips", "tmp/data", "tmp/zips/expenses_execution", "tmp/zips/expenses", "tmp/data/expenses_execution", "tmp/data/expenses"}
+	dirs := []string{"tmp", "tmp/zips", "tmp/data", "tmp/zips/expenses_execution", "tmp/zips/expenses", "tmp/data/expenses_execution", "tmp/data/expenses", "tmp/zips/budget", "tmp/data/budget"}
 	for _, dir := range dirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			err := os.Mkdir(dir, os.ModePerm)
@@ -268,8 +268,38 @@ func main() {
 		orch.Close()
 		orch.Wait()
 
+	case "budget":
+		pipeline := application.NewBudgetPipeline(transparency_portal_client, loader, appLogger)
+		orch := application.NewOrchestrator(pipeline, storage.IngestionHistory, appLogger, *concurrencyPtr)
+
+		start, end := pipeline.HistoryRange(init_parsed_date, end_parsed_date)
+		if err = orch.InitializeState(ctx, start, end, codesArr); err != nil {
+			appLogger.Fatal(component, "Failed to initialize orchestrator state: error=%v", err)
+			return
+		}
+
+		orch.Start(ctx)
+
+		startYear := time.Date(init_parsed_date.Year(), 1, 1, 0, 0, 0, 0, init_parsed_date.Location())
+		endYear := time.Date(end_parsed_date.Year(), 1, 1, 0, 0, 0, 0, end_parsed_date.Location())
+		for y := startYear; !y.After(endYear); y = y.AddDate(1, 0, 0) {
+			job := model.BudgetJob{
+				Year:    y.Format("2006"),
+				Codes:   codesArr,
+				Trigger: *triggerPtr,
+			}
+			if *debugPtr || orch.ShouldProcess(pipeline.StatusKey(job)) {
+				orch.AddJob(job)
+			} else {
+				appLogger.Info(component, "Skipping year (already processed or active): year=%s", job.Year)
+			}
+		}
+
+		orch.Close()
+		orch.Wait()
+
 	default:
-		appLogger.Fatal(component, "Unknown extraction kind: kind=%s (valid: expenses, expenses_execution)", *kindPtr)
+		appLogger.Fatal(component, "Unknown extraction kind: kind=%s (valid: expenses, expenses_execution, budget)", *kindPtr)
 		return
 	}
 

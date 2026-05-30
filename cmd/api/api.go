@@ -70,6 +70,11 @@ func (app *application) mount() http.Handler {
 		r.Route("/budget-execution", func(r chi.Router) {
 			r.Get("/", app.handleGetBudgetExecution)
 		})
+		r.Route("/budget", func(r chi.Router) {
+			r.Get("/", app.handleGetExpenseBudget)
+			r.Get("/summary", app.handleGetExpenseBudgetSummary)
+			r.Get("/global-summary", app.handleGetExpenseBudgetGlobalSummary)
+		})
 		r.Route("/commitments", func(r chi.Router) {
 			r.Get("/", app.handleGetCommitmentsInformation)
 		})

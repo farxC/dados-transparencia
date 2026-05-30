@@ -81,16 +81,12 @@ func (c *transparencyPortalClient) FetchExpensesExecution(month, year string) se
 
 	c.logger.Debug(component, "Starting download for month=%s year=%s url=%s", month, year, url)
 
-	c.client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3")
-		return nil
-	}
-	// Create a new request with a custom User-Agent header
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		c.logger.Error(component, "Failed to create HTTP request: month=%s year=%s error=%v", month, year, err)
 		return service.DownloadResult{Success: false}
 	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3")
 
 	resp, err := c.client.Do(req)
 
@@ -102,7 +98,7 @@ func (c *transparencyPortalClient) FetchExpensesExecution(month, year string) se
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		c.logger.Warn(component, "Non-OK HTTP response: month=%s year=%s status=%s statusCode=%d", month, year, resp.Status, resp.StatusCode)
+		c.logger.Warn(component, "Non-OK HTTP response: month=%s year=%s status=%s statusCode=%d body=%d", month, year, resp.Status, resp.StatusCode, resp.Body)
 		return service.DownloadResult{Success: false}
 	}
 
@@ -124,6 +120,76 @@ func (c *transparencyPortalClient) FetchExpensesExecution(month, year string) se
 	return service.DownloadResult{Success: true, OutputPath: output_path}
 }
 
+func (c *transparencyPortalClient) FetchBudget(year string) service.DownloadResult {
+	const component = "Downloader"
+	url := c.baseUrl + "orcamento-despesa/" + year
+	outputPath := "tmp/zips/budget/" + year + "_OrcamentoDespesa.zip"
+
+	c.logger.Info(component, "Starting budget download for year=%s url=%s", year, url)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		c.logger.Error(component, "Failed to create HTTP request: year=%s error=%v", year, err)
+		return service.DownloadResult{Success: false}
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		c.logger.Error(component, "HTTP request failed: year=%s error=%v", year, err)
+		return service.DownloadResult{Success: false}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.logger.Warn(component, "Non-OK HTTP response: year=%s status=%s statusCode=%d body=%s", year, resp.Status, resp.StatusCode, resp.Body)
+		return service.DownloadResult{Success: false}
+	}
+
+	out, err := os.Create(outputPath)
+	if err != nil {
+		c.logger.Error(component, "Failed to create output file: year=%s path=%s error=%v", year, outputPath, err)
+		return service.DownloadResult{Success: false}
+	}
+	defer out.Close()
+
+	bytesWritten, err := io.Copy(out, resp.Body)
+	if err != nil {
+		c.logger.Error(component, "Failed to write data to file: year=%s error=%v", year, err)
+		return service.DownloadResult{Success: false}
+	}
+
+	c.logger.Info(component, "Budget download completed: year=%s path=%s size=%d bytes", year, outputPath, bytesWritten)
+	return service.DownloadResult{Success: true, OutputPath: outputPath}
+}
+
+func (c *transparencyPortalClient) ExtractBudget(cfg service.BudgetExtractionConfig) (*service.BudgetPayload, error) {
+	const component = "DataExtractor"
+
+	df, err := filesystem.OpenFileAndDecode(cfg.File)
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := FindRowsSync(df, service.OrcamentoDespesa, cfg.Codes, "CÓDIGO ÓRGÃO SUBORDINADO", c.debug)
+	c.logger.Info(component, "Filtered budget rows: year=%s rows=%d", cfg.Year, filtered.Nrow())
+
+	if filtered.Nrow() == 0 {
+		return nil, fmt.Errorf("dataframe is empty")
+	}
+
+	rows := make([]model.ExpenseBudget, 0, filtered.Nrow())
+	for i := 0; i < filtered.Nrow(); i++ {
+		row, err := DfRowToExpenseBudget(filtered, i)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map budget row %d: %w", i, err)
+		}
+		rows = append(rows, row)
+	}
+
+	return &service.BudgetPayload{Year: cfg.Year, Rows: rows}, nil
+}
+
 func (c *transparencyPortalClient) FetchExpensesData(date string) service.DownloadResult {
 	component := "Downloader"
 	url := c.baseUrl + "despesas/" + date
@@ -131,16 +197,12 @@ func (c *transparencyPortalClient) FetchExpensesData(date string) service.Downlo
 
 	c.logger.Debug(component, "Starting download for date=%s url=%s", date, url)
 
-	c.client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3")
-		return nil
-	}
-	// Create a new request with a custom User-Agent header
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		c.logger.Error(component, "Failed to create HTTP request: date=%s error=%v", date, err)
 		return service.DownloadResult{Success: false}
 	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3")
 
 	resp, err := c.client.Do(req)
 

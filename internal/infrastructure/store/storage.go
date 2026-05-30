@@ -21,6 +21,8 @@ type Storage struct {
 
 	ExpensesExecution repository.ExpensesExecutionInterface
 
+	ExpenseBudget repository.ExpenseBudgetInterface
+
 	DB *sqlx.DB
 }
 
@@ -42,6 +44,7 @@ func (s *Storage) WithTx(tx *sqlx.Tx) *Storage {
 		IngestionHistory:  &IngestionHistoryStore{db: tx},
 		Expenses:          &ExpensesStore{db: tx},
 		ExpensesExecution: &ExpensesExecutionStore{db: tx},
+		ExpenseBudget:     &ExpenseBudgetStore{db: tx},
 	}
 }
 
@@ -53,6 +56,7 @@ func NewStorage(db *sqlx.DB) *Storage {
 		IngestionHistory:  &IngestionHistoryStore{db: db},
 		Expenses:          &ExpensesStore{db: db},
 		ExpensesExecution: &ExpensesExecutionStore{db: db},
+		ExpenseBudget:     &ExpenseBudgetStore{db: db},
 		DB:                db,
 	}
 }

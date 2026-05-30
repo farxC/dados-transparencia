@@ -143,6 +143,26 @@ func (s *storageLoader) LoadExpenses(ctx context.Context, payload *service.Expen
 	return nil
 }
 
+func (s *storageLoader) LoadExpenseBudget(ctx context.Context, payload *service.BudgetPayload) error {
+	const component = "Loader"
+	s.logger.Info(component, "Starting expense budget load for year: %s", payload.Year)
+
+	now := time.Now()
+	for i := range payload.Rows {
+		row := payload.Rows[i]
+		row.InsertedAt = now
+		row.UpdatedAt = now
+
+		if err := s.storage.ExpenseBudget.InsertExpenseBudget(ctx, &row); err != nil {
+			s.logger.Error(component, "Failed to insert expense budget row year=%s action=%s: %v", payload.Year, row.ActionCode, err)
+			return err
+		}
+	}
+
+	s.logger.Info(component, "Expense budget load completed for year: %s rows=%d", payload.Year, len(payload.Rows))
+	return nil
+}
+
 func (s *storageLoader) LoadExpensesExecution(ctx context.Context, payload *service.ExpensesExecutionPayload) error {
 	const component = "Loader"
 	s.logger.Info(component, "Starting expenses execution load for extraction date: %s", payload.ExtractionDate)

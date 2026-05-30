@@ -20,3 +20,11 @@ type ExpensesExecutionJob struct {
 	IsManagingCode bool
 	Trigger        string
 }
+
+// BudgetJob represents one year of annual budget allocation (LOA) data to ingest.
+// Granularity: annual (one job per year). Filters by CÓDIGO ÓRGÃO SUBORDINADO.
+type BudgetJob struct {
+	Year    string  // "2025"
+	Codes   []int64 // subordinate agency codes (e.g. 26421 = IFRO, 26415 = IFMS)
+	Trigger string
+}
