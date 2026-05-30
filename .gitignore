@@ -8,6 +8,7 @@ bin/
 .specify
 docs/
 .DS_Store
+memory/
 ARCHITECTURE_DESIGN.md
 SYSTEM_DESIGN.md
 ARCH-DESIGN.MD
